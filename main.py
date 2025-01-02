@@ -2,6 +2,16 @@ import bibtexparser
 import pandas as pd
 import re
 import requests
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Retrieve the API key from environment variables
+SCOPUS_API_KEY = os.getenv("SCOPUS_API_KEY")
+if not SCOPUS_API_KEY:
+    raise ValueError("SCOPUS_API_KEY is not set. Please add it to the .env file.")
 
 # Define the output columns
 COLUMNS = [
@@ -21,8 +31,6 @@ COLUMNS = [
     "DOI / Link to article"
 ]
 
-# Replace with your Scopus API key
-SCOPUS_API_KEY = "a6c48a8ed1f6ef585ee0ea18d5d0ff83"
 
 def clean_text(text):
     """Remove unnecessary curly braces from text."""
@@ -57,8 +65,7 @@ def get_citescore(journal_issn):
     if response.status_code == 200:
         data = response.json()
         try:
-            # Extract CiteScore
-            citescore = (
+             return (
                 data.get("serial-metadata-response", {})
                 .get("entry", [{}])[0]
                 .get("citeScoreYearInfoList", {})
