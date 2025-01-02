@@ -31,6 +31,20 @@ COLUMNS = [
     "DOI / Link to article"
 ]
 
+def parse_annote_field(annote):
+    """Parse the annote field into a dictionary of key-value pairs."""
+    if not annote:
+        return {}
+
+    # Split the annote field by semicolons and extract key-value pairs
+    pairs = re.split(r";\s*", annote)
+    annote_dict = {}
+    for pair in pairs:
+        match = re.match(r"(\w+):\s*(.+)", pair)
+        if match:
+            key, value = match.groups()
+            annote_dict[key.strip().lower()] = value.strip()
+    return annote_dict
 
 def clean_text(text):
     """Remove unnecessary curly braces from text."""
@@ -106,12 +120,16 @@ def parse_bibtex_to_excel(input_bibtex, output_excel):
         journal = clean_text(entry.get("journal", ""))
         doi = clean_text(entry.get("doi", ""))
 
+        # Retrieve ISSN and CiteScore
         issn = get_issn_from_doi(doi) if doi else ""
         citescore = get_citescore(issn) if issn else ""
 
-        # If ISSN and CiteScore are not found via DOI, try using journal title
         if not issn or not citescore:
             issn, citescore = get_issn_and_citescore_by_title(journal)
+
+        # Parse the annote field
+        annote_field = clean_text(entry.get("annote", ""))
+        annote_data = parse_annote_field(annote_field)
 
         row = {
             "Year": clean_text(entry.get("year", "")),
@@ -119,14 +137,14 @@ def parse_bibtex_to_excel(input_bibtex, output_excel):
             "VHB / SJR / CiteScore Rank": citescore,
             "Title": clean_text(entry.get("title", "")),
             "Author(s)": clean_text(entry.get("author", "")),
-            "Research Problem/Gap": "",  # Manually added later
-            "Research Question(s)": "",  # Manually added later
-            "Hypothesis(es)": "",  # Manually added later
-            "Theorectical Model / Framework": "",  # Manually added later
-            "Method(s)": "",  # Manually added later
-            "Sample Size": "",  # Manually added later
-            "Main Results": "",  # Manually added later
-            "Conclusions": "",  # Manually added later
+            "Research Problem/Gap": annote_data.get("researchproblem", ""),
+            "Research Question(s)": annote_data.get("researchquestion", ""),
+            "Hypothesis(es)": annote_data.get("hypothesis", ""),
+            "Theorectical Model / Framework": annote_data.get("theoreticalmodel", ""),
+            "Method(s)": annote_data.get("method", ""),
+            "Sample Size": annote_data.get("samplesize", ""),
+            "Main Results": annote_data.get("mainresults", ""),
+            "Conclusions": annote_data.get("conclusions", ""),
             "DOI / Link to article": doi
         }
         rows.append(row)
@@ -136,6 +154,7 @@ def parse_bibtex_to_excel(input_bibtex, output_excel):
 
     # Write the DataFrame to an Excel file
     df.to_excel(output_excel, index=False)
+
 
 if __name__ == "__main__":
     # Input BibTeX file path
