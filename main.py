@@ -54,6 +54,26 @@ def get_issn_from_doi(doi):
         print(f"Failed to retrieve ISSN for DOI {doi}: {response.status_code}, {response.text}")
         return ""
 
+def get_issn_and_citescore_by_title(journal_title):
+    """Retrieve the ISSN and CiteScore of a journal by its title via the Scopus API."""
+    if not journal_title:
+        return "", ""
+    url = f"https://api.elsevier.com/content/serial/title?title={journal_title}"
+    headers = {"X-ELS-APIKey": SCOPUS_API_KEY, "Accept": "application/json"}
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        entries = data.get("serial-metadata-response", {}).get("entry", [])
+        if entries:
+            issn = entries[0].get("prism:issn", "")
+            citescore = (
+                entries[0].get("citeScoreYearInfoList", {})
+                .get("citeScoreCurrentMetric", "")
+            )
+            return issn, citescore
+    return "", ""
+
 def get_citescore(journal_issn):
     """Retrieve the CiteScore of a journal using the Scopus API."""
     if not journal_issn:
@@ -64,22 +84,18 @@ def get_citescore(journal_issn):
 
     if response.status_code == 200:
         data = response.json()
-        try:
-             return (
-                data.get("serial-metadata-response", {})
-                .get("entry", [{}])[0]
-                .get("citeScoreYearInfoList", {})
-                .get("citeScoreCurrentMetric", "")
-            )
-        except Exception as e:
-            print(f"Error parsing CiteScore for ISSN {journal_issn}: {e}")
-            return ""
+        return (
+            data.get("serial-metadata-response", {})
+            .get("entry", [{}])[0]
+            .get("citeScoreYearInfoList", {})
+            .get("citeScoreCurrentMetric", "")
+        )
     else:
-        print(f"Failed to retrieve CiteScore for ISSN {journal_issn}: {response.status_code}, {response.text}")
         return ""
 
 
 def parse_bibtex_to_excel(input_bibtex, output_excel):
+    """Convert BibTeX file to Excel with additional data."""
     # Read and parse the BibTeX file
     with open(input_bibtex, 'r') as bibtex_file:
         bib_database = bibtexparser.load(bibtex_file)
@@ -93,10 +109,14 @@ def parse_bibtex_to_excel(input_bibtex, output_excel):
         issn = get_issn_from_doi(doi) if doi else ""
         citescore = get_citescore(issn) if issn else ""
 
+        # If ISSN and CiteScore are not found via DOI, try using journal title
+        if not issn or not citescore:
+            issn, citescore = get_issn_and_citescore_by_title(journal)
+
         row = {
             "Year": clean_text(entry.get("year", "")),
             "Journal": journal,
-            "VHB / SJR / CiteScore Rank": citescore,  # CiteScore added here
+            "VHB / SJR / CiteScore Rank": citescore,
             "Title": clean_text(entry.get("title", "")),
             "Author(s)": clean_text(entry.get("author", "")),
             "Research Problem/Gap": "",  # Manually added later
