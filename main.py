@@ -41,7 +41,7 @@ def get_issn_from_doi(doi):
     if response.status_code == 200:
         data = response.json()
         coredata = data.get("full-text-retrieval-response", {}).get("coredata", {})
-        return issn
+        return coredata.get("prism:issn", "")
     else:
         print(f"Failed to retrieve ISSN for DOI {doi}: {response.status_code}, {response.text}")
         return ""
@@ -64,11 +64,6 @@ def get_citescore(journal_issn):
                 .get("citeScoreYearInfoList", {})
                 .get("citeScoreCurrentMetric", "")
             )
-            if citescore:
-                print(f"Retrieved CiteScore: {citescore} for ISSN: {journal_issn}")
-            else:
-                print(f"CiteScore not found for ISSN: {journal_issn}. Check response format.")
-            return citescore
         except Exception as e:
             print(f"Error parsing CiteScore for ISSN {journal_issn}: {e}")
             return ""
